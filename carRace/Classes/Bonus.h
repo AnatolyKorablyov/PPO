@@ -1,15 +1,16 @@
 #pragma once
 #include "cocos2d.h"
 
-class SlowDriver
+class CBonus
 {
 public:
-	SlowDriver();
-	void SpawnSlowDriver(cocos2d::Layer *layer);
-	~SlowDriver();
+	CBonus();
+	~CBonus();
+	void SpawnBonus(cocos2d::Layer *layer);
 private:
 	cocos2d::Size visibleSize;
 	cocos2d::Vec2 origin;
 
 	cocos2d::Sprite *m_slowDriver;
 };
+

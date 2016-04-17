@@ -22,13 +22,13 @@ bool AppDelegate::applicationDidFinishLaunching()
     auto director = Director::getInstance();
     auto glview = director->getOpenGLView();
     if(!glview) {
-        glview = GLViewImpl::createWithRect("car_race", Rect(0, 0, 640, 800));
+        glview = GLViewImpl::createWithRect("car_race", Rect(0, 0, 480, 800));
         director->setOpenGLView(glview);
     }
 
-    director->getOpenGLView()->setDesignResolutionSize(480, 800, ResolutionPolicy::SHOW_ALL);
+    director->getOpenGLView()->setDesignResolutionSize(480, 800, ResolutionPolicy::NO_BORDER);
 	
-	director->setDisplayStats(true);
+	director->setDisplayStats(false);
     director->setAnimationInterval(1.0 / 60);
     FileUtils::getInstance()->addSearchPath("res");
 

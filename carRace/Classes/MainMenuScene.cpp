@@ -31,10 +31,10 @@ bool MainMenuScene::init()
 	backgroundSprite->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
 	this->addChild(backgroundSprite);
 
-	auto titleSprite = Sprite::create("ladaLogo.png");
+	/*auto titleSprite = Sprite::create("ladaLogo.png");
 	titleSprite->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height + origin.y));
 	this->addChild(titleSprite);
-
+*/
 	auto playItem = MenuItemImage::create("letsGo.png", "play.png", CC_CALLBACK_1(MainMenuScene::GoToGameScene, this));
 	playItem->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
 

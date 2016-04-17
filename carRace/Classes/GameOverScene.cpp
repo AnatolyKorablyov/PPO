@@ -6,7 +6,7 @@ USING_NS_CC;
 
 using namespace cocostudio::timeline;
 
-Scene* GameOverScene::createScene()
+Scene* GameOverScene::createScene(unsigned score)
 {
     auto scene = Scene::create();
     auto layer = GameOverScene::create();
@@ -28,5 +28,17 @@ bool GameOverScene::init()
 	backgroundSprite->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
 	this->addChild(backgroundSprite);
 
-    return true;
+	auto playItem = MenuItemImage::create("restartOff.png", "restartOn.png", CC_CALLBACK_1(GameOverScene::GoToGameScene, this));
+	playItem->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
+
+	auto menu = Menu::create(playItem, NULL);
+	menu->setPosition(Point::ZERO);
+
+	this->addChild(menu);
+	return true;
+}
+void GameOverScene::GoToGameScene(cocos2d::Ref *sender)
+{
+	auto scene = GameScene::createScene();
+	Director::getInstance()->replaceScene(TransitionFade::create(TRANSITION_TIME, scene));
 }

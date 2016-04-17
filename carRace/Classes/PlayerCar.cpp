@@ -5,32 +5,32 @@ USING_NS_CC;
 
 PlayerCar::PlayerCar(cocos2d::Layer *layer)
 {
+	m_gasoline = 10.0;
 	m_visibleSize = Director::getInstance()->getVisibleSize();
 	m_origin = Director::getInstance()->getVisibleOrigin();
 
 	auto pinfo = AutoPolygon::generatePolygon("myCar.png");
-	m_playerCar = Sprite::create(pinfo);
-	m_playerCar->setPosition(Point(m_visibleSize.width / 2 + m_origin.x, 200));
+	m_playerSprite = Sprite::create(pinfo);
+	m_playerSprite->setPosition(Point(m_visibleSize.width / 2 + m_origin.x, 200));
 
-	auto playerBody = PhysicsBody::createCircle(m_playerCar->getContentSize().width / 2);
-
-	playerBody->setCollisionBitmask(BIRD_COLLISION_BITMASK);
+	auto playerBody = PhysicsBody::createBox(m_playerSprite->getContentSize());
+	playerBody->setDynamic(true);
+	playerBody->setCollisionBitmask(1);
+	playerBody->setGravityEnable(false);
+	playerBody->setRotationEnable(false);
 	playerBody->setContactTestBitmask(true);
-
-	//m_playerCar->setPhysicsBody(playerBody);
-
-	layer->addChild(m_playerCar, 100);
+	playerBody->setContactTestBitmask(PLAYER_CAR_COLLISION_BITMASK);
+	playerBody->setCollisionBitmask(PLAYER_CAR_COLLISION_BITMASK);
+	playerBody->setTag(128);
+	playerBody->setName("Player");
+	m_playerSprite->setPhysicsBody(playerBody);
+	
+	layer->addChild(m_playerSprite, 100);
 }
 
-void PlayerCar::ControlCar()
+
+void PlayerCar::ControlCarWithTouch(float pos)
 {
-	if (leftMove)
-	{
-		m_playerCar->setPositionX(m_playerCar->getPositionX() - 10);
-	}
-	else if (rightMove)
-	{
-		m_playerCar->setPositionX(m_playerCar->getPositionX() + 10);
-	}
+	m_playerSprite->setPositionX(pos);
 }
 

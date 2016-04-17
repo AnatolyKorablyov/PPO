@@ -2,79 +2,258 @@
 #include "cocostudio/CocoStudio.h"
 #include "ui\CocosGUI.h"
 #include "Definition.h"
+#include "GameOverScene.h"
 
 USING_NS_CC;
 
-using namespace cocostudio::timeline;
-
 Scene* GameScene::createScene()
 {
-    auto scene = Scene::createWithPhysics();
-	scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
+	auto scene = Scene::createWithPhysics();
+	//scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
 
-    auto layer = GameScene::create();
+	auto layer = GameScene::create();
 	layer->SetPhysicsWorld(scene->getPhysicsWorld());
 
-    scene->addChild(layer);
-    return scene;
+	scene->addChild(layer);
+	return scene;
 }
 
+void GameScene::InitBackground()
+{
+	auto backgroundSprite = Sprite::create("road.png");
+	backgroundSprite->setAnchorPoint(Vec2::ZERO);
+	backgroundSprite->setPosition(0, 0);
+	this->addChild(backgroundSprite, -1);
+
+	Vector<SpriteFrame*> frames;
+	Size backgroundSize = backgroundSprite->getContentSize();
+	frames.pushBack(SpriteFrame::create("road1.png", Rect(0, 0, backgroundSize.width, backgroundSize.height)));
+	frames.pushBack(SpriteFrame::create("road2.png", Rect(0, 0, backgroundSize.width, backgroundSize.height)));
+	frames.pushBack(SpriteFrame::create("road3.png", Rect(0, 0, backgroundSize.width, backgroundSize.height)));
+	auto animation = Animation::createWithSpriteFrames(frames, 0.1f);
+	auto animate = Animate::create(animation);
+	backgroundSprite->runAction(RepeatForever::create(animate));
+}
+
+void GameScene::InitLabel()
+{
+	m_scoreLabel = Label::createWithTTF("Score: 0", "Graffiti.ttf", m_visibleSize.height * 0.05);
+	m_scoreLabel->setColor(Color3B::WHITE);
+	m_scoreLabel->setPosition(Point(m_visibleSize.width / 2 + m_origin.x, 100));
+	this->addChild(m_scoreLabel, 100);
+	m_gasolineLabel = Label::createWithTTF("Gas", "Graffiti.ttf", m_visibleSize.height * 0.05);
+	m_gasolineLabel->setColor(Color3B::WHITE);
+	m_gasolineLabel->setPosition(Point(m_visibleSize.width / 2 + m_origin.x, 50));
+	this->addChild(m_gasolineLabel, 100);
+}
 
 bool GameScene::init()
 {
-    if ( !Layer::init() )
-    {
-        return false;
-    }
-    
-    Size visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+	if (!Layer::init())
+	{
+		return false;
+	}
 
-	auto backgroundSprite = Sprite::create("road.png");
-	backgroundSprite->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
-	this->addChild(backgroundSprite);
+	m_visibleSize = Director::getInstance()->getVisibleSize();
+	m_origin = Director::getInstance()->getVisibleOrigin();
 
-	auto edgeBody = PhysicsBody::createEdgeBox(visibleSize, PHYSICSBODY_MATERIAL_DEFAULT, 3);
-	auto edgeNode = Node::create();
-	edgeNode->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
-	edgeNode->setPhysicsBody(edgeBody);
-	this->addChild(edgeNode);
+	InitBackground();
 
-	this->schedule(schedule_selector(GameScene::SpawnPipe), PIPE_SPAWN_FREQUENCY);
+	this->schedule(schedule_selector(GameScene::SpawnSlowCar), SLOW_CAR_SPAWN_FREQUENCY);
+	this->schedule(schedule_selector(GameScene::SpawnGasoline), BONUS_SPAWN_FREQUENCY);
+	this->schedule(schedule_selector(GameScene::DecrementGasoline), GAS_MILEAGE);
 
-	playerCar = new PlayerCar(this);
+	InitPhysics();
+	InitTouch();
+	InitPlayer();
+	InitLabel();
+	
 
-	Vector<MenuItem*> itemsUI;
-	auto leftButton = MenuItemImage::create("left.png", "left.png", CC_CALLBACK_1(GameScene::onTouchLeftButton, this));
-	leftButton->setPosition(Point(100, 50));
-	itemsUI.pushBack(leftButton);
-
-	auto rightButton = MenuItemImage::create("right.png", "right.png", CC_CALLBACK_1(GameScene::onTouchRightButton, this));
-	rightButton->setPosition(Point(0, 50));
-	itemsUI.pushBack(rightButton);
-
-	auto raceUI = Menu::createWithArray(itemsUI);
-	this->addChild(raceUI, 1);
-
-    return true;
+	return true;
 }
 
-void GameScene::SpawnPipe(float dt)
+void GameScene::DecrementGasoline(float dt)
 {
-	slowDr.SpawnSlowDriver(this);
+	m_gasoline -= 0.1f;
+	m_gasolineLabel->setString("Gas: " + std::to_string((m_gasoline / 10) * 10));
+	if (m_gasoline <= 0)
+	{
+		GoToGameOverScene();
+	}
+}
+
+void GameScene::InitPhysics()
+{
+	auto contactListener = EventListenerPhysicsContact::create();
+
+	contactListener->onContactBegin = CC_CALLBACK_1(GameScene::OnCollision, this);
+	getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener, this);
+}
+
+void GameScene::onTouchMov(Touch* touch, Event* event)
+{
+	(void)event;
+
+	auto touchLocation = touch->getLocation();
+
+	if (m_playerSpr->getBoundingBox().containsPoint(touchLocation))
+	{
+		MovePlayerIfPossible(touchLocation.x);
+	}
+}
+
+void GameScene::RemoveBonus()
+{
+	for (auto bonus = m_bonusGasoline.begin(); bonus != m_bonusGasoline.end();)
+	{
+		if ((*bonus)->getPhysicsBody()->getName() == "empty")
+		{
+			(*bonus)->setVisible(false);
+			this->removeChild((*bonus));
+			bonus = m_bonusGasoline.erase(bonus);
+		}
+		else
+		{
+			++bonus;
+		}
+	}
+}
+
+bool GameScene::OnCollision(PhysicsContact& contact)
+{
+	PhysicsBody *a = contact.getShapeA()->getBody();
+	PhysicsBody *b = contact.getShapeB()->getBody();
+
+	if ((a->getName() == "player" && b->getName() == "slowCar") ||
+		(b->getName() == "player" && a->getName() == "slowCar"))
+	{
+		GoToGameOverScene();
+	}
+	else if ((a->getName() == "player" && b->getName() == "spectacle") ||
+		(b->getName() == "player" && a->getName() == "spectacle"))
+	{
+		m_score += SCORE_INCREMENT;
+		m_scoreLabel->setString("Score: " + std::to_string(m_score));
+	}
+	else if (a->getName() == "player" && b->getName() == "gas")
+	{
+		m_gasoline += 3.0f;
+		b->setName("empty");
+		RemoveBonus();
+	}
+	else if (b->getName() == "player" && a->getName() == "gas")
+	{
+		m_gasoline += 3.0f;
+		a->setName("empty");
+		RemoveBonus();
+	}
+
+	return false;
+}
+
+void GameScene::InitTouch()
+{
+	auto listener = EventListenerTouchOneByOne::create();
+
+	listener->onTouchBegan = CC_CALLBACK_2(GameScene::onTouchBeg, this);
+	listener->onTouchMoved = CC_CALLBACK_2(GameScene::onTouchMov, this);
+	listener->onTouchEnded = [=](Touch* touch, Event* event) {};
+
+	_eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 }
 
 
-void GameScene::onTouchLeftButton(cocos2d::Ref *sender)
+void GameScene::MovePlayerIfPossible(float newX)
 {
-	playerCar->leftMove = true;
-	playerCar->ControlCar();
-	playerCar->leftMove = false;
+	float sprHalfWidth = m_playerSpr->getBoundingBox().size.width / 2;
+
+	if (newX >= sprHalfWidth && newX < m_visibleSize.width - sprHalfWidth)
+	{
+		m_playerSpr->setPositionX(newX);
+	}
 }
 
-void GameScene::onTouchRightButton(cocos2d::Ref *sender)
+bool GameScene::onTouchBeg(cocos2d::Touch* touch, cocos2d::Event* event)
 {
-	playerCar->rightMove = true;
-	playerCar->ControlCar();
-	playerCar->rightMove = false;
+	return true;
+}
+
+void GameScene::SpawnSlowCar(float dt)
+{
+	for (int i = 0; i < C_BOMBS_COUNT; i++)														
+	{
+		Sprite* carSprite = Sprite::create("slow.png");
+		Sprite* spectacleSprite = Sprite::create("spectacles.png");
+		auto posX = CCRANDOM_0_1() * m_visibleSize.width;
+		auto posY = m_visibleSize.height + carSprite->getContentSize().height / 2;
+
+		carSprite->setPosition(posX, posY);
+		spectacleSprite->setPosition(posX, posY);
+		this->addChild(carSprite, 1);
+		this->addChild(spectacleSprite, 1);
+
+		SetPhysicsBodyBox(carSprite);
+		SetPhysicsBodyCircle(spectacleSprite);
+
+		auto speed = (CCRANDOM_0_1() + 0.8f) * -250;
+
+		carSprite->getPhysicsBody()->setVelocity(Vect(0, speed));
+		carSprite->getPhysicsBody()->setName("slowCar");
+
+		spectacleSprite->getPhysicsBody()->setVelocity(Vect(0, speed));
+		spectacleSprite->getPhysicsBody()->setName("spectacle");
+		m_slowCar.pushBack(carSprite);
+	}
+}
+
+void GameScene::SpawnGasoline(float dt)
+{
+	Sprite* gas = Sprite::create("benzin.png");
+
+	gas->setPosition(CCRANDOM_0_1() * m_visibleSize.width, m_visibleSize.height + gas->getContentSize().height / 2);
+	this->addChild(gas, 1);
+
+	SetPhysicsBodyBox(gas);
+
+	gas->getPhysicsBody()->setVelocity(Vect(0, ((CCRANDOM_0_1() + 0.8f) * -250)));
+	gas->getPhysicsBody()->setName("gas");
+	m_bonusGasoline.pushBack(gas);
+
+}
+
+void GameScene::SetPhysicsBodyCircle(cocos2d::Sprite* sprite)
+{
+	auto body = PhysicsBody::createCircle(sprite->getContentSize().width);
+
+	body->setContactTestBitmask(true);
+	body->setDynamic(true);
+
+	sprite->setPhysicsBody(body);
+}
+
+void GameScene::SetPhysicsBodyBox(cocos2d::Sprite* sprite)
+{
+	auto body = PhysicsBody::createBox(cocos2d::Size(sprite->getContentSize().width, sprite->getContentSize().height));
+
+	body->setContactTestBitmask(true);
+	body->setDynamic(true);
+
+	sprite->setPhysicsBody(body);
+}
+
+void GameScene::InitPlayer()
+{
+	m_playerSpr = Sprite::create("myCar.png");
+	m_playerSpr->setPosition(m_visibleSize.width / 2, 200);
+	this->addChild(m_playerSpr, 0);
+	SetPhysicsBodyBox(m_playerSpr);
+
+	m_playerSpr->getPhysicsBody()->setGravityEnable(false);
+	m_playerSpr->getPhysicsBody()->setName("player");
+}
+
+void GameScene::GoToGameOverScene()
+{
+	auto scene = GameOverScene::createScene(m_score);
+	Director::getInstance()->replaceScene(TransitionFade::create(TRANSITION_TIME, scene));
 }
