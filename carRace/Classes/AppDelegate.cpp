@@ -1,9 +1,13 @@
 #include "AppDelegate.h"
+#include "SimpleAudioEngine.h"
 #include "SplashScene.h"
 
 USING_NS_CC;
 
-AppDelegate::AppDelegate() {
+using namespace CocosDenshion;
+
+AppDelegate::AppDelegate() 
+{
 
 }
 
@@ -22,11 +26,11 @@ bool AppDelegate::applicationDidFinishLaunching()
     auto director = Director::getInstance();
     auto glview = director->getOpenGLView();
     if(!glview) {
-        glview = GLViewImpl::createWithRect("car_race", Rect(0, 0, 480, 800));
+        glview = GLViewImpl::create("car_race");
+		glview->setFrameSize(480, 800);
         director->setOpenGLView(glview);
     }
-
-    director->getOpenGLView()->setDesignResolutionSize(480, 800, ResolutionPolicy::NO_BORDER);
+    director->getOpenGLView()->setDesignResolutionSize(768, 1280, ResolutionPolicy::NO_BORDER);
 	
 	director->setDisplayStats(false);
     director->setAnimationInterval(1.0 / 60);
@@ -41,9 +45,11 @@ bool AppDelegate::applicationDidFinishLaunching()
 void AppDelegate::applicationDidEnterBackground() 
 {
     Director::getInstance()->stopAnimation();
+	SimpleAudioEngine::getInstance()->pauseBackgroundMusic();
 }
 
 void AppDelegate::applicationWillEnterForeground() 
 {
     Director::getInstance()->startAnimation();
+	SimpleAudioEngine::getInstance()->resumeBackgroundMusic();
 }

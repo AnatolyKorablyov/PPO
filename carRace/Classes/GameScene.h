@@ -1,5 +1,6 @@
 #pragma once
 #include "cocos2d.h"
+#include "SimpleAudioEngine.h"
 
 class GameScene : public cocos2d::Layer
 {
@@ -22,7 +23,6 @@ private:
 	void InitPlayer();
 	void InitLabel();
 
-
 	void DecrementGasoline(float dt);
 	void GoToGameOverScene();
 	void RemoveBonus();
@@ -42,6 +42,6 @@ private:
 	cocos2d::Vector<cocos2d::Sprite*> m_bonusGasoline;
 	cocos2d::Label * m_scoreLabel;
 	cocos2d::Label * m_gasolineLabel;
-	float m_gasoline = 15.0f;
+	float m_gasoline = 10.0f;
 	unsigned m_score = 0;
 };

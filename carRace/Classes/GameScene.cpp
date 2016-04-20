@@ -5,6 +5,7 @@
 #include "GameOverScene.h"
 
 USING_NS_CC;
+using namespace CocosDenshion;
 
 Scene* GameScene::createScene()
 {
@@ -67,20 +68,22 @@ bool GameScene::init()
 	InitTouch();
 	InitPlayer();
 	InitLabel();
-	
-
+	SimpleAudioEngine::getInstance()->playBackgroundMusic("Academeg.mp3", true);
 	return true;
 }
 
 void GameScene::DecrementGasoline(float dt)
 {
 	m_gasoline -= 0.1f;
-	m_gasolineLabel->setString("Gas: " + std::to_string((m_gasoline / 10) * 10));
+	std::stringstream ss;
+	ss << m_gasoline;
+	m_gasolineLabel->setString("Gas: " + ss.str());
 	if (m_gasoline <= 0)
 	{
 		GoToGameOverScene();
 	}
 }
+
 
 void GameScene::InitPhysics()
 {
@@ -127,27 +130,35 @@ bool GameScene::OnCollision(PhysicsContact& contact)
 	if ((a->getName() == "player" && b->getName() == "slowCar") ||
 		(b->getName() == "player" && a->getName() == "slowCar"))
 	{
+		SimpleAudioEngine::getInstance()->stopBackgroundMusic();
+		SimpleAudioEngine::getInstance()->playEffect("bomb.wav");
 		GoToGameOverScene();
 	}
 	else if ((a->getName() == "player" && b->getName() == "spectacle") ||
 		(b->getName() == "player" && a->getName() == "spectacle"))
 	{
+		SimpleAudioEngine::getInstance()->playEffect("spectacle.wav");
 		m_score += SCORE_INCREMENT;
-		m_scoreLabel->setString("Score: " + std::to_string(m_score));
+		std::stringstream ss;
+		ss << m_score;
+
+		m_scoreLabel->setString("Score: " + ss.str());
 	}
 	else if (a->getName() == "player" && b->getName() == "gas")
 	{
+		SimpleAudioEngine::getInstance()->playEffect("bonus.wav");
 		m_gasoline += 3.0f;
 		b->setName("empty");
 		RemoveBonus();
 	}
 	else if (b->getName() == "player" && a->getName() == "gas")
 	{
+		SimpleAudioEngine::getInstance()->playEffect("bonus.wav");
 		m_gasoline += 3.0f;
 		a->setName("empty");
 		RemoveBonus();
 	}
-
+	
 	return false;
 }
 
@@ -180,7 +191,7 @@ bool GameScene::onTouchBeg(cocos2d::Touch* touch, cocos2d::Event* event)
 
 void GameScene::SpawnSlowCar(float dt)
 {
-	for (int i = 0; i < C_BOMBS_COUNT; i++)														
+	for (int i = 0; i < C_SLOW_CAR_COUNT; i++)
 	{
 		Sprite* carSprite = Sprite::create("slow.png");
 		Sprite* spectacleSprite = Sprite::create("spectacles.png");
@@ -244,7 +255,7 @@ void GameScene::SetPhysicsBodyBox(cocos2d::Sprite* sprite)
 void GameScene::InitPlayer()
 {
 	m_playerSpr = Sprite::create("myCar.png");
-	m_playerSpr->setPosition(m_visibleSize.width / 2, 200);
+	m_playerSpr->setPosition(m_visibleSize.width / 2, m_visibleSize.height * 0.2);
 	this->addChild(m_playerSpr, 0);
 	SetPhysicsBodyBox(m_playerSpr);
 
